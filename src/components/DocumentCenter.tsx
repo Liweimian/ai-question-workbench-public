@@ -1,5 +1,5 @@
 import { MetisButton } from '@yuanfudao/metis-web-component'
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import {
   BrainCircuit,
   BookOpen,
@@ -9,22 +9,18 @@ import {
   FolderHeart,
   ListTree,
   Layers3,
-  LoaderCircle,
-  RefreshCw,
   Search,
   School,
   Sparkles,
   Target,
   Clock3,
-  X,
 } from 'lucide-react'
 import type { AddQuestionMode, AsyncStatus, HistoryDocumentSummary, OpenAddOptions } from '../prototype/types'
-import { FeixiangAiLibraryLogo } from './ElephantIcon'
 import { formatRecentEditedMeta, selectRecentEditedSummaries } from '../utils/recentEditedDocuments'
-import { isRecentEditedPanelClosed, setRecentEditedPanelClosed } from '../utils/recentEditedPanelPreference'
 
 interface DocumentCenterProps {
   embedded?: boolean
+  hideDraft?: boolean
   draftContent?: ReactNode
   histories: HistoryDocumentSummary[]
   currentDocumentId?: string
@@ -43,103 +39,57 @@ const aiTaskEntries: Array<{ mode: AddQuestionMode; label: string; description: 
   { mode: 'compose', label: 'AI 组题', description: '直接说作业或试卷要求，从题库配题组卷', icon: BrainCircuit },
 ]
 
-export function DocumentCenter({ embedded = false, draftContent, histories, currentDocumentId, historyStatus, onOpenDocument, onOpenMyResources, onOpenSource, onOpenAiSearch, onOpenRecentBrowse, onReload }: DocumentCenterProps) {
-  const [recentPanelClosed, setRecentPanelClosed] = useState(() => isRecentEditedPanelClosed())
+type DocumentCenterLauncherProps = Omit<DocumentCenterProps, 'embedded' | 'draftContent' | 'hideDraft'> & {
+  overlay?: boolean
+}
 
-  useEffect(() => {
-    setRecentPanelClosed(isRecentEditedPanelClosed())
-  }, [])
-
+export function DocumentCenterLauncher({ overlay = false, histories, currentDocumentId, historyStatus, onOpenDocument, onOpenMyResources, onOpenSource, onOpenAiSearch, onOpenRecentBrowse, onReload }: DocumentCenterLauncherProps) {
   const recentDocuments = useMemo(() => selectRecentEditedSummaries(histories), [histories])
-  const hasRecentContent = historyStatus === 'error' || recentDocuments.length > 0
-  const panelDismissed = recentPanelClosed || isRecentEditedPanelClosed()
-  const showRecentPanel = hasRecentContent && !panelDismissed
-
-  const closeRecentPanel = () => {
-    setRecentEditedPanelClosed(true)
-    setRecentPanelClosed(true)
-  }
-
-  const openRecentPanel = () => {
-    setRecentEditedPanelClosed(false)
-    setRecentPanelClosed(false)
-  }
-
-  const recentPanel = showRecentPanel ? (
-    <section className="document-center-recent" aria-label="最近编辑">
-      <div className="document-center-section-title">
-        <div><h2>最近编辑</h2></div>
-        <div className="document-center-section-actions">
-          {recentDocuments.length ? <span>{recentDocuments.length} 份</span> : null}
-          <button type="button" className="document-center-recent-close" aria-label="关闭最近编辑" onClick={closeRecentPanel}>
-            <X size={16} />
-          </button>
+  return (
+    <aside className={`home-launcher${overlay ? ' is-overlay' : ''}`} aria-label="添加题目首页">
+      <button type="button" className="home-launcher-search" onClick={onOpenAiSearch} aria-label="打开AI智搜">
+        <Sparkles size={17} /><strong>AI智搜</strong><span>搜索关键词</span><i><Search size={16} /></i>
+      </button>
+      <section className="home-launcher-section">
+        <h2>添加题目</h2>
+        <div className="home-launcher-grid">
+          <button type="button" onClick={() => onOpenSource('resource', { libraryView: 'chapter' })}><ListTree size={17} /><span>章节/知识点</span></button>
+          <button type="button" onClick={() => onOpenSource('resource', { libraryView: 'sync' })}><Layers3 size={17} /><span>同步练习</span></button>
+          <button type="button" onClick={() => onOpenSource('resource', { libraryView: 'workbook' })}><BookOpen size={17} /><span>练习册</span></button>
+          <button type="button" onClick={() => onOpenSource('resource', { libraryView: 'special' })}><Target size={17} /><span>专题练习</span></button>
+          <button type="button" onClick={() => onOpenSource('resource', { libraryView: 'paper' })}><FileText size={17} /><span>试卷</span></button>
+          <button type="button" onClick={() => onOpenSource('school')}><School size={17} /><span>校本题库</span></button>
+          <button type="button" onClick={onOpenMyResources}><FolderHeart size={17} /><span>我的资源</span></button>
+          <button type="button" onClick={onOpenRecentBrowse}><Clock3 size={17} /><span>最近浏览</span></button>
         </div>
+      </section>
+      <div className="home-launcher-grid is-ai">
+        {aiTaskEntries.map(({ mode, label, description, icon: Icon }) => (
+          <button type="button" key={mode} title={description} onClick={() => onOpenSource(mode)}><Icon size={17} /><span>{label.replace('上传文件 ', '').replace(' ', '')}</span></button>
+        ))}
       </div>
-      {historyStatus === 'loading' ? (
-        <div className="document-center-state"><LoaderCircle className="is-spinning" size={18} />正在加载最近题单…</div>
-      ) : historyStatus === 'error' ? (
-        <div className="document-center-state is-error"><span>最近题单加载失败</span><MetisButton type="bordered" onClick={onReload}>重新加载</MetisButton></div>
-      ) : (
-        <div className="document-center-list">
-          {recentDocuments.map((item) => {
+      <section className="home-launcher-section is-recent">
+        <h2>最近编辑</h2>
+        {historyStatus === 'error' ? <MetisButton type="borderless" onClick={onReload}>重新加载</MetisButton> : null}
+        <div className="home-launcher-recent-list">
+          {recentDocuments.slice(0, 4).map((item) => {
             const editing = item.id === currentDocumentId
-            return (
-            <button type="button" className={`document-recent-item${editing ? ' is-editing' : ''}`} key={item.id} onClick={() => onOpenDocument(item.id)} aria-current={editing ? 'true' : undefined}>
-              <span className="document-file-icon" title={editing ? '正在编辑' : undefined}>{editing ? <FilePenLine size={22} /> : <FileText size={22} />}</span>
-              <span className="document-recent-item-copy">
-                <span className="document-recent-item-title">
-                  <strong>{item.title}</strong>
-                  {editing ? <em className="document-editing-label">正在编辑</em> : null}
-                </span>
-                <small>{formatRecentEditedMeta(item)}</small>
-              </span>
+            return <button type="button" key={item.id} onClick={() => onOpenDocument(item.id)} aria-current={editing ? 'true' : undefined}>
+              <span>{editing ? <FilePenLine size={18} /> : <FileText size={18} />}</span>
+              <div><strong>{item.title}</strong><small>{formatRecentEditedMeta(item)}</small></div>
               <time>{item.updatedAt}</time>
             </button>
-            )
           })}
         </div>
-      )}
-    </section>
-  ) : null
-
-  return (
-    <div className={`document-center${embedded ? ' is-embedded' : ''} is-layout-2`}>
-      <aside className="document-center-sidebar">
-        {!embedded ? <div className="document-center-brand"><FeixiangAiLibraryLogo /><strong>AI 题单</strong></div> : null}
-        <nav className="document-center-nav" aria-label="题单导航">
-          <p>添加题目</p>
-          <button type="button" className="is-library-task" onClick={() => onOpenSource('resource', { libraryView: 'chapter' })}><ListTree size={17} /><span>按章节/知识点选题</span></button>
-          <button type="button" className="is-library-task" onClick={() => onOpenSource('resource', { libraryView: 'workbook' })}><BookOpen size={17} /><span>从练习册选题</span></button>
-          <button type="button" className="is-library-task" onClick={() => onOpenSource('resource', { libraryView: 'paper' })}><FileText size={17} /><span>从试卷选题</span></button>
-          <button type="button" className="is-library-task" onClick={() => onOpenSource('resource', { libraryView: 'sync' })}><Layers3 size={17} /><span>从同步练习选题</span></button>
-          <button type="button" className="is-library-task" onClick={() => onOpenSource('resource', { libraryView: 'special' })}><Target size={17} /><span>从专题练习选题</span></button>
-          <button type="button" className="is-library-task" onClick={() => onOpenSource('school')}><School size={17} /><span>从校本题库选题</span></button>
-          {aiTaskEntries.map(({ mode, label, description, icon: Icon }) => (
-            <button type="button" className="is-ai-task" key={mode} title={description} aria-label={label} onClick={() => onOpenSource(mode)}><Icon size={17} /><span>{label}</span></button>
-          ))}
-          <button type="button" className="is-ai-task" title="用一句话查找全站已有题目、练习和试卷" aria-label="AI智搜" onClick={onOpenAiSearch} data-track="/click/aiQuestionHome/openAiSearch | 打开AI智搜 | 无"><Search size={17} /><span>AI智搜</span></button>
-          <button type="button" className="is-personal-task" onClick={onOpenMyResources} data-track="/click/aiQuestionHome/openMyResources | 打开我的资源 | 无"><FolderHeart size={17} /><span>从我的资源选题</span></button>
-          <button type="button" className="is-personal-task" onClick={onOpenRecentBrowse} data-track="/click/aiQuestionHome/openRecentBrowse | 打开最近浏览 | 无"><RefreshCw size={17} /><span>继续最近浏览</span></button>
-          {hasRecentContent && panelDismissed ? (
-            <button type="button" className="is-personal-task is-recent-edited-reopen" onClick={openRecentPanel}>
-              <Clock3 size={17} /><span>最近编辑</span>
-            </button>
-          ) : null}
-        </nav>
-      </aside>
-
-      <main className="document-center-main">
-        <header className="document-center-heading">
-          <div>{!embedded ? <span>题单工作台</span> : null}<h1>最近编辑</h1>{!embedded ? <p>继续上次的题单，或创建一份新题单。</p> : null}</div>
-          {!embedded ? <MetisButton type="borderless" icon={<RefreshCw size={16} />} onClick={onReload}>刷新</MetisButton> : null}
-        </header>
-
-        <div className={`document-layout-two${showRecentPanel ? '' : ' is-recent-hidden'}`}>
-          <div className="document-center-draft">{draftContent}</div>
-          {recentPanel}
-        </div>
-      </main>
-    </div>
+      </section>
+    </aside>
   )
+}
+
+export function DocumentCenter({ embedded = false, hideDraft = false, draftContent, histories, currentDocumentId, historyStatus, onOpenDocument, onOpenMyResources, onOpenSource, onOpenAiSearch, onOpenRecentBrowse, onReload }: DocumentCenterProps) {
+  const launcherProps = { histories, currentDocumentId, historyStatus, onOpenDocument, onOpenMyResources, onOpenSource, onOpenAiSearch, onOpenRecentBrowse, onReload }
+  return <div className={`document-center${embedded ? ' is-embedded' : ''} is-home-launcher-layout${hideDraft ? ' is-draft-hidden' : ''}`}>
+    <DocumentCenterLauncher {...launcherProps} />
+    {hideDraft ? null : <main className="document-center-main"><div className="document-center-draft">{draftContent}</div></main>}
+  </div>
 }

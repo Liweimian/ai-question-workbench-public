@@ -10,11 +10,11 @@ import { MyResourceQuestionDetail } from '../components/MyResourceQuestionDetail
 import { ResourceFileDetail } from '../components/ResourceFileDetail'
 import { SourceDrawer } from '../components/SourceDrawer'
 import { WorkspaceHeader } from '../components/WorkspaceHeader'
-import { DocumentCenter } from '../components/DocumentCenter'
+import { DocumentCenter, DocumentCenterLauncher } from '../components/DocumentCenter'
 import { ElephantIcon, FeixiangAiLibraryLogo } from '../components/ElephantIcon'
 import { useWorkbench } from '../hooks/useWorkbench'
 import type { AddQuestionMode, Difficulty, MyResourceKind, MyResourceSummary, Question, QuestionType, SourceRecord } from '../prototype/types'
-import { BrainCircuit, ChevronRight, File, FileText, House, PanelLeftClose, PanelRightOpen, RefreshCw, X } from 'lucide-react'
+import { BrainCircuit, ChevronLeft, ChevronRight, File, FileText, House, PanelLeftClose, PanelRightOpen, RefreshCw, X } from 'lucide-react'
 import { EditorStudioShell } from '../components/EditorStudioShell'
 import { ScoreSettingsDialog } from '../components/ScoreSettingsDialog'
 import { getDocumentKind, needsPaperScoreSettings } from '../utils/documentEditorUtils'
@@ -67,6 +67,7 @@ export function WorkbenchHomePage() {
   const highlightTimerRef = useRef<number | null>(null)
   const assistantTabRef = useRef<HTMLButtonElement>(null)
   const aiSearchTabRef = useRef<HTMLButtonElement>(null)
+  const homeLauncherCloseTimerRef = useRef<number | null>(null)
   const [sortCollapsed, setSortCollapsed] = useState(false)
   const [sidePanelOpen, setSidePanelOpen] = useState(true)
   const [draftCollapsed, setDraftCollapsed] = useState(false)
@@ -93,8 +94,26 @@ export function WorkbenchHomePage() {
   const [resourceAnswerSheetDocument, setResourceAnswerSheetDocument] = useState<ReturnType<typeof readStoredDocument>>(null)
   const [resourceAnswerSheetSaveState, setResourceAnswerSheetSaveState] = useState<'dirty' | 'saving' | 'saved' | 'error'>('saved')
   const [gradeSubject, setGradeSubject] = useState('初中数学')
+  const [homeLauncherPreviewOpen, setHomeLauncherPreviewOpen] = useState(false)
   const hasQuestions = workbench.document.questions.length > 0
   const activeLibraryDetail = libraryDetailTabs.find((tab) => tab.key === activeLibraryDetailKey) ?? null
+
+  const openHomeLauncherPreview = () => {
+    if (isAddHome) return
+    if (homeLauncherCloseTimerRef.current !== null) {
+      window.clearTimeout(homeLauncherCloseTimerRef.current)
+      homeLauncherCloseTimerRef.current = null
+    }
+    setHomeLauncherPreviewOpen(true)
+  }
+
+  const scheduleHomeLauncherPreviewClose = () => {
+    if (homeLauncherCloseTimerRef.current !== null) window.clearTimeout(homeLauncherCloseTimerRef.current)
+    homeLauncherCloseTimerRef.current = window.setTimeout(() => {
+      setHomeLauncherPreviewOpen(false)
+      homeLauncherCloseTimerRef.current = null
+    }, 160)
+  }
 
   useEffect(() => {
     if (workbench.document.questions.length > previousQuestionCount.current && workbench.selectedQuestionId) {
@@ -113,6 +132,7 @@ export function WorkbenchHomePage() {
 
   useEffect(() => () => {
     if (highlightTimerRef.current !== null) window.clearTimeout(highlightTimerRef.current)
+    if (homeLauncherCloseTimerRef.current !== null) window.clearTimeout(homeLauncherCloseTimerRef.current)
   }, [])
 
   useEffect(() => {
@@ -509,7 +529,7 @@ export function WorkbenchHomePage() {
   const reviewMode = new URLSearchParams(window.location.search).get('mode') === 'review'
   const libraryDetailRecord = activeLibraryDetail?.record ?? null
   const shellClassName = sidePanelOpen
-    ? `workspace-shell is-split-source${draftCollapsed ? ' is-draft-collapsed' : ''}`
+    ? `workspace-shell is-split-source${draftCollapsed ? ' is-draft-collapsed' : ''}${isAddHome ? ' is-add-home' : ''}`
     : `workspace-shell is-focus-editor is-studio${sortCollapsed ? ' is-sort-collapsed' : ''}${hasQuestions ? '' : ' is-empty'}`
   const hasUnsavedDocumentChanges = workbench.documentSyncState === 'dirty'
     || workbench.documentSyncState === 'error'
@@ -796,7 +816,7 @@ export function WorkbenchHomePage() {
   return (
     <div className="fx-app metis-theme-aiq">
       <main className="fx-content workbench-page">
-        <div className={`fx-zoom-area workbench-zoom-area${alternateHomeLayout ? ' is-alternate-home' : ''}`}>
+        <div className={`fx-zoom-area workbench-zoom-area${alternateHomeLayout ? ' is-alternate-home' : ''}${isAddHome ? ' is-add-home' : ''}${draftCollapsed ? ' is-draft-collapsed' : ''}`}>
           <WorkspaceHeader
             documentTitle={workbench.document.title}
             documentUpdatedAt={workbench.document.updatedAt}
@@ -833,6 +853,7 @@ export function WorkbenchHomePage() {
               setSidePanelOpen(false)
               setDraftCollapsed(false)
             }}
+            showActionLabels={isAddHome}
             studioEditorOpen={studioEditorOpen}
             studioDocument={studioEditorOpen ? workbench.document : undefined}
             onStudioSave={(kind) => trySaveDocument(kind)}
@@ -880,24 +901,29 @@ export function WorkbenchHomePage() {
               >
                 {renderDraftContent(true, true)}
               </EditorStudioShell>
-            ) : renderDraftContent(sidePanelOpen)) : (
+            ) : renderDraftContent(sidePanelOpen)) : (!isAddHome ? (
               <aside className="draft-collapsed-rail" aria-label="组题画布已收起">
                 <button type="button" onClick={() => setDraftCollapsed(false)} aria-label="展开组题画布" title="展开组题画布">
                   <PanelRightOpen size={17} />
                   <span>组题画布</span>
                 </button>
               </aside>
-            )) : null}
+            ) : null)) : null}
 
             {sidePanelOpen ? (
               <div className="add-workspace" aria-label="添加题目多任务工作区">
-                <header className={`add-workspace-topbar${opensHomeworkResources ? ' is-homework-resource' : ''}`}>
+                <header className={`add-workspace-topbar${opensHomeworkResources ? ' is-homework-resource' : ''}${isAddHome ? ' is-home-split' : ''}${isAddHome && draftCollapsed ? ' is-draft-collapsed' : ''}`}>
                   {opensHomeworkResources ? (
                     <nav className="homework-resource-breadcrumb" aria-label="我的资源面包屑">
                       <span><House size={15} />作业首页</span>
                       <ChevronRight size={14} />
                       <strong>我的资源</strong>
                     </nav>
+                  ) : null}
+                  {isAddHome ? (
+                    <button type="button" className="home-split-back" aria-label="返回" title="返回" onClick={activateAddHome}>
+                      <ChevronLeft size={18} />
+                    </button>
                   ) : null}
                   <div className="add-workspace-brand" aria-label="选择学段科目">
                     <FeixiangAiLibraryLogo />
@@ -914,8 +940,16 @@ export function WorkbenchHomePage() {
                     aria-label="添加题目首页"
                     title="添加题目首页"
                     aria-current={isAddHome ? 'page' : undefined}
+                    aria-expanded={!isAddHome ? homeLauncherPreviewOpen : undefined}
                     className={`add-workspace-home${isAddHome ? ' is-active' : ''}`}
-                    onClick={activateAddHome}
+                    onClick={() => {
+                      setHomeLauncherPreviewOpen(false)
+                      activateAddHome()
+                    }}
+                    onMouseEnter={openHomeLauncherPreview}
+                    onMouseLeave={scheduleHomeLauncherPreviewClose}
+                    onFocus={openHomeLauncherPreview}
+                    onBlur={scheduleHomeLauncherPreviewClose}
                   ><House size={17} /></button>
                   <GlobalResourceSearch
                     className={showHomeAiSearch ? 'is-full-workspace is-home-aligned' : alternateHomeLayout ? 'is-full-workspace' : 'is-split-workspace'}
@@ -1037,7 +1071,15 @@ export function WorkbenchHomePage() {
                     </span>
                   ) : null}
                   </nav>
-                  {isAddHome ? null : (
+                  {isAddHome ? (
+                    <button
+                      type="button"
+                      className="add-workspace-collapse"
+                      aria-label={draftCollapsed ? '展开题单编辑区' : '收起题单编辑区'}
+                      title={draftCollapsed ? '展开题单编辑区' : '收起题单编辑区'}
+                      onClick={() => setDraftCollapsed((collapsed) => !collapsed)}
+                    ><PanelRightOpen size={17} /></button>
+                  ) : (
                     <button
                       type="button"
                       className="add-workspace-collapse"
@@ -1047,6 +1089,28 @@ export function WorkbenchHomePage() {
                     ><PanelLeftClose size={17} /></button>
                   )}
                 </header>
+                {!isAddHome ? (
+                  <div
+                    className={`home-launcher-preview${homeLauncherPreviewOpen ? ' is-open' : ''}`}
+                    onMouseEnter={openHomeLauncherPreview}
+                    onMouseLeave={scheduleHomeLauncherPreviewClose}
+                  >
+                    <div className="home-launcher-preview-panel">
+                      <DocumentCenterLauncher
+                        overlay
+                        histories={workbench.historyDocuments}
+                        currentDocumentId={workbench.document.id}
+                        historyStatus={workbench.historyStatus}
+                        onOpenDocument={(documentId) => { void workbench.openHistoryDocument(documentId); setHomeLauncherPreviewOpen(false) }}
+                        onOpenMyResources={() => { openMyResources('全部'); setHomeLauncherPreviewOpen(false) }}
+                        onOpenSource={(mode, options) => { openAdd(mode, options); setHomeLauncherPreviewOpen(false) }}
+                        onOpenAiSearch={() => { activateAiSearch(); setHomeLauncherPreviewOpen(false) }}
+                        onOpenRecentBrowse={() => { openRecentBrowse(); setHomeLauncherPreviewOpen(false) }}
+                        onReload={() => { void workbench.reloadHistory() }}
+                      />
+                    </div>
+                  </div>
+                ) : null}
                 {activeFileDetailId && fileDetailTabs.some((tab) => tab.id === activeFileDetailId) ? (
                   fileDetailTabs.find((tab) => tab.id === activeFileDetailId)!.kind === '文件' ? <ResourceFileDetail
                       resource={fileDetailTabs.find((tab) => tab.id === activeFileDetailId)!}
@@ -1137,7 +1201,8 @@ export function WorkbenchHomePage() {
                 ) : (
                   <DocumentCenter
                     embedded
-                    draftContent={renderDraftContent(false)}
+                    hideDraft={draftCollapsed}
+                    draftContent={renderDraftContent(true)}
                     histories={workbench.historyDocuments}
                     currentDocumentId={workbench.document.id}
                     historyStatus={workbench.historyStatus}

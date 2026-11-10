@@ -44,6 +44,7 @@ interface WorkspaceHeaderProps {
   sidePanelOpen: boolean
   onSidePanelOpen: () => void
   onEnterEdit: () => void
+  showActionLabels?: boolean
   studioEditorOpen?: boolean
   studioDocument?: WorkbenchDocument
   onStudioSave?: (kind?: WorkbenchDocumentKind) => void | Promise<boolean | void>
@@ -78,6 +79,7 @@ export function WorkspaceHeader({
   sidePanelOpen,
   onSidePanelOpen,
   onEnterEdit,
+  showActionLabels = false,
   studioEditorOpen = false,
   studioDocument,
   onStudioSave,
@@ -268,7 +270,7 @@ export function WorkspaceHeader({
   }
 
   return (
-    <header className={`fx-page-header workspace-header${sidePanelOpen ? ' is-split' : ''}${studioEditorOpen ? ' is-studio-editor' : ''}${draftCollapsed ? ' is-draft-collapsed' : ''}`} data-sec="1">
+    <header className={`fx-page-header workspace-header${sidePanelOpen ? ' is-split' : ''}${showActionLabels ? ' has-action-labels' : ''}${studioEditorOpen ? ' is-studio-editor' : ''}${draftCollapsed ? ' is-draft-collapsed' : ''}`} data-sec="1">
       {draftCollapsed ? (
         <MetisButton
           type="borderless"
@@ -301,7 +303,7 @@ export function WorkspaceHeader({
         <span className="header-icon-action" data-tooltip="新建题单">
           <MetisButton
             type="borderless"
-            className={studioEditorOpen ? 'header-create-with-label' : undefined}
+            className={studioEditorOpen || showActionLabels ? 'header-create-with-label' : undefined}
             icon={<Plus size={18} />}
             aria-label="新建题单"
             title="新建题单"
@@ -309,7 +311,7 @@ export function WorkspaceHeader({
             onClick={handleCreateNewClick}
             data-track="/click/aiQuestionHome/createBlank | 新建空白题单 | 无"
           >
-            {studioEditorOpen ? '新建' : undefined}
+            {studioEditorOpen || showActionLabels ? '新建' : undefined}
           </MetisButton>
         </span>
         {!studioEditorOpen && !compactAnswerSheetPaper ? (
@@ -322,7 +324,9 @@ export function WorkspaceHeader({
               disabled={!canSave || syncState === 'saving' || contentBusy || saveAsPending}
               onClick={handleSaveClick}
               data-track="/click/aiQuestionHome/save | 保存当前草稿 | 无"
-            />
+            >
+              {showActionLabels ? '保存' : undefined}
+            </MetisButton>
             <SaveAsDialog
               open={saveAsDialogOpen}
               pending={saveAsPending || syncState === 'saving'}
@@ -348,7 +352,9 @@ export function WorkspaceHeader({
                   setSaveAsDialogOpen(false)
                 }}
                 data-track="/click/aiQuestionHome/assign | 布置当前内容 | 无"
-              />
+              >
+                {showActionLabels ? (assignmentOutdated ? '更新布置' : '布置') : undefined}
+              </MetisButton>
               {assignOpen ? (
                 <div className="header-assign-menu" role="dialog" aria-label="确认布置题单">
                   <strong>{assignmentOutdated ? '确认更新布置' : '确认布置题单'}</strong>
@@ -371,7 +377,9 @@ export function WorkspaceHeader({
                 onEnterEdit()
               }}
               data-track="/click/aiQuestionHome/enterFocusEditor | 展开题单编辑 | 无"
-            />
+            >
+              {showActionLabels ? '展开' : undefined}
+            </MetisButton>
           </span>
         ) : null}
         {!studioEditorOpen ? (
@@ -388,7 +396,9 @@ export function WorkspaceHeader({
                 setAssignOpen(false)
                 setSaveAsDialogOpen(false)
               }}
-            />
+            >
+              {showActionLabels ? '更多' : undefined}
+            </MetisButton>
             {moreOpen ? (
               <div className="header-more-menu" role="menu" aria-label="更多题单操作">
                 {compactAnswerSheetPaper ? (
