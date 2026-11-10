@@ -28,11 +28,16 @@ jobs:
         with:
           ref: scheme-1
           path: scheme-1-source
+      - name: Checkout scheme two
+        uses: actions/checkout@v4
+        with:
+          ref: scheme-2
+          path: scheme-2-source
       - name: Assemble published versions
         run: |
-          mkdir -p site/scheme-1
-          cp -R dist/client/. site/
-          cp -R scheme-1-source/dist/client/. site/scheme-1/
+          mkdir -p site/scheme-2
+          cp -R scheme-1-source/dist/client/. site/
+          cp -R scheme-2-source/dist/client/. site/scheme-2/
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload site
