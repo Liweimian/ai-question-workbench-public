@@ -23,12 +23,22 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Checkout scheme one
+        uses: actions/checkout@v4
+        with:
+          ref: scheme-1
+          path: scheme-1-source
+      - name: Assemble published versions
+        run: |
+          mkdir -p site/scheme-1
+          cp -R dist/client/. site/
+          cp -R scheme-1-source/dist/client/. site/scheme-1/
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload site
         uses: actions/upload-pages-artifact@v3
         with:
-          path: dist/client
+          path: site
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
